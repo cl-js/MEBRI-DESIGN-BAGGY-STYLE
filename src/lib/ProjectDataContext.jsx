@@ -1,11 +1,10 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
-import { projects as bundledProjects } from "@/lib/projectData";
 import { supabase } from "@/lib/supabaseClient";
 
 const ProjectDataContext = createContext(null);
 
 export function ProjectDataProvider({ children }) {
-  const [projects, setProjects] = useState(bundledProjects);
+  const [projects, setProjects] = useState([]);
 
   useEffect(() => {
     let active = true;
@@ -20,10 +19,9 @@ export function ProjectDataProvider({ children }) {
 
       if (error) {
         console.error("Failed to load public projects from Supabase:", error);
-      } else if (data?.length && active) {
-        const remoteProjects = data.map((row) => ({ ...row.data, images: row.images || row.data.images || [] }));
-        const isCurrentCatalog = remoteProjects.every((project) => ["Upper", "Lower", "Outerwear", "Sets", "Essentials"].includes(project.category));
-        if (isCurrentCatalog) setProjects(remoteProjects);
+      } else if (active) {
+        const remoteProjects = (data || []).map((row) => ({ ...row.data, images: row.images || row.data.images || [] }));
+        setProjects(remoteProjects);
       }
     }
 

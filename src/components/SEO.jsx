@@ -1,12 +1,12 @@
 import { useEffect } from "react";
 import { useLocation } from "react-router-dom";
 
-const siteName = "Mebri";
-const fallbackDescription = "Mebri is a contemporary fashion label from Addis Ababa creating oversized, baggy, and architectural everyday clothing.";
+const siteName = "Mebri Baggy Style";
+const fallbackDescription = "Mebri Baggy Style creates oversized, baggy, and architectural contemporary clothing from Addis Ababa.";
 
 const pageContent = {
   "/": {
-    title: "Mebri | Contemporary Forms",
+    title: "Mebri Baggy Style | Contemporary Forms",
     description: fallbackDescription,
     keywords: "Mebri fashion, oversized clothing, baggy fashion, contemporary African design",
   },

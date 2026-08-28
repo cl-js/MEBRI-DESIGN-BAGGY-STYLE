@@ -76,7 +76,7 @@ export default function Admin() {
         .map((project, index) => ({
           title: project.title,
           slug: project.slug,
-          sort_order: (existing?.length || 0) + index + 1,
+          sort_order: (existing || []).reduce((highest, row) => Math.max(highest, row.sort_order || 0), 0) + index + 1,
           images: project.images || [],
           data: project,
           is_deleted: false,
@@ -244,7 +244,8 @@ export default function Admin() {
         id: editing === "new" ? String(projects.length + 1).padStart(2, "0") : form.id,
         slug: form.slug?.trim() || `${fallbackSlug}-${editing === "new" ? Date.now() : form.id}`,
       });
-      const payload = { title: project.title, slug: project.slug, sort_order: existing?.sort_order || projects.length + 1, images: project.images, data: project };
+      const nextSortOrder = existing?.sort_order || projects.reduce((highest, row) => Math.max(highest, row.sort_order || 0), 0) + 1;
+      const payload = { title: project.title, slug: project.slug, sort_order: nextSortOrder, images: project.images, data: project };
       const query = existing
         ? supabase.from("projects").update(payload).eq("id", existing.id)
         : supabase.from("projects").insert(payload);

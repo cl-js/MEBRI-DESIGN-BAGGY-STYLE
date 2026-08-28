@@ -1,6 +1,7 @@
 {
-  "name": "Mebri Design",
-  "short_name": "Mebri Design",
+  "name": "Mebri Baggy Style",
+  "short_name": "Baggy Style",
+  "description": "Oversized, baggy, and architectural contemporary clothing from Mebri.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#ffffff",

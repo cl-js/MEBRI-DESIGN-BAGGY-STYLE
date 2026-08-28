@@ -3,4 +3,4 @@ Allow: /
 Disallow: /admin
 Disallow: /update-contact
 
-Sitemap: https://mebri-design.vercel.app/sitemap.xml
+Sitemap: https://mebri-design-baggy-style.vercel.app/sitemap.xml

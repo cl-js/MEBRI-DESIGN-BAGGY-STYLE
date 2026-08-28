@@ -5,7 +5,7 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/lib/supabaseClient";
 import { Instagram, MessageCircle, Music2, Phone, Send, Twitter } from "lucide-react";
 
-const defaultSettings = { location: "Addis Ababa, Ethiopia", mapQuery: "Addis Ababa, Ethiopia", myLocation: "https://maps.app.goo.gl/6YKNdJUvh3XbZ2Aq7?g_st=atm", phone: "+251 93 429 0520", whatsapp: "https://wa.me/251934290520", instagram: "https://instagram.com", telegram: "https://t.me/MTdesignerandmodel", tiktok: "https://tiktok.com", twitter: "https://twitter.com" };
+const defaultSettings = { location: "Addis Ababa, Ethiopia", mapQuery: "Addis Ababa, Ethiopia", myLocation: "https://maps.app.goo.gl/zAfbZ3vp7xGEfKnP8?g_st=atm", phone: "+251 93 429 0520", whatsapp: "https://wa.me/251934290520", instagram: "https://instagram.com", telegram: "https://t.me/MTdesignerandmodel", tiktok: "https://tiktok.com", twitter: "https://twitter.com" };
 
 function FadeIn({ children, className = "", delay = 0 }) {
   const ref = useRef(null);

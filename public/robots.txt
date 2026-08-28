@@ -1,0 +1,6 @@
+User-agent: *
+Allow: /
+Disallow: /admin
+Disallow: /update-contact
+
+Sitemap: https://mebri-design.vercel.app/sitemap.xml

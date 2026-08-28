@@ -5,7 +5,7 @@ import SkillsGrid from "@/components/about/SkillsGrid";
 import { useLanguage } from "@/lib/LanguageContext";
 
 
-const PORTRAIT = "https://wicesnjxvsfgyhgcqogc.supabase.co/storage/v1/object/public/Mebri-design/O4D.png";
+const PORTRAIT = "/public/bro.jpg";
 
 function FadeIn({ children, className = "", delay = 0 }) {
   const ref = useRef(null);

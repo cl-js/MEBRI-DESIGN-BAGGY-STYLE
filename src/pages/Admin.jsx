@@ -2,8 +2,8 @@ import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { supabase } from "@/lib/supabaseClient";
 import { projects as bundledProjects } from "@/lib/projectData";
+import { ADMIN_EMAIL, isAdminEmail } from "@/lib/adminConfig";
 
-const ADMIN_EMAIL = "englishpractice265@gmail.com";
 const emptyProject = {
   title: "", subtitle: "", role: "", year: "", category: "", objective: "",
   tagline: "", description: "", image: "", heroImage: "", processImage: "", images: [],
@@ -37,7 +37,7 @@ export default function Admin() {
   const [uploadingImages, setUploadingImages] = useState(false);
 
   function isAuthorized(nextSession) {
-    return nextSession?.user?.email?.toLowerCase() === ADMIN_EMAIL;
+    return isAdminEmail(nextSession?.user?.email);
   }
 
   useEffect(() => {

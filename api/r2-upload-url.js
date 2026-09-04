@@ -2,11 +2,43 @@ import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { createClient } from "@supabase/supabase-js";
 
-const ADMIN_EMAIL = "englishpractice265@gmail.com";
+const ADMIN_EMAIL = process.env.ADMIN_EMAIL?.trim().toLowerCase();
 const MAX_UPLOAD_BYTES = 15 * 1024 * 1024;
 
 function json(response, status, body) {
   response.status(status).json(body);
+}
+
+async function readRequestBody(request) {
+  const contentType = request.headers.get?.("content-type") || request.headers["content-type"] || "";
+
+  if (contentType.includes("application/json")) {
+    try {
+      return await request.json();
+    } catch {
+      return {};
+    }
+  }
+
+  if (request.body && typeof request.body !== "string") {
+    try {
+      const raw = await new Response(request.body).text();
+      if (!raw) return {};
+      try {
+        return JSON.parse(raw);
+      } catch {
+        return { raw };
+      }
+    } catch {
+      return {};
+    }
+  }
+
+  if (request.body && typeof request.body === "object") {
+    return request.body;
+  }
+
+  return {};
 }
 
 export default async function handler(request, response) {
@@ -20,7 +52,7 @@ export default async function handler(request, response) {
   const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
   const supabaseKey = process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 
-  if (!accessToken || !supabaseUrl || !supabaseKey) {
+  if (!accessToken || !supabaseUrl || !supabaseKey || !ADMIN_EMAIL) {
     return json(response, 401, { error: "Admin authentication is required." });
   }
 
@@ -32,8 +64,11 @@ export default async function handler(request, response) {
     return json(response, 403, { error: "You are not authorized to upload images." });
   }
 
-  const { filename, contentType, size } = request.body || {};
-  if (!filename || !contentType?.startsWith("image/") || !Number.isFinite(size) || size <= 0 || size > MAX_UPLOAD_BYTES) {
+  const body = await readRequestBody(request);
+  const { filename, contentType, size } = body || {};
+  const uploadSize = Number(size);
+
+  if (!filename || !contentType?.startsWith("image/") || !Number.isFinite(uploadSize) || uploadSize <= 0 || uploadSize > MAX_UPLOAD_BYTES) {
     return json(response, 400, { error: "Upload an image smaller than 15 MB." });
   }
 

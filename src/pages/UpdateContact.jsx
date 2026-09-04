@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "@/lib/supabaseClient";
+import { isAdminEmail } from "@/lib/adminConfig";
 
-const ADMIN_EMAIL = "englishpractice265@gmail.com";
 const defaultSettings = {
   location: "Addis Ababa, Ethiopia",
   mapQuery: "Addis Ababa, Ethiopia",
@@ -39,7 +39,7 @@ export default function UpdateContact() {
     async function load() {
       if (!supabase) { navigate("/contact", { replace: true }); return; }
       const { data: sessionData } = await supabase.auth.getSession();
-      if (sessionData.session?.user?.email?.toLowerCase() !== ADMIN_EMAIL) {
+      if (!isAdminEmail(sessionData.session?.user?.email)) {
         navigate("/contact", { replace: true });
         return;
       }

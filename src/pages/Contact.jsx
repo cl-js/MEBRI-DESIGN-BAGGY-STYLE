@@ -3,6 +3,7 @@ import { motion, useInView } from "framer-motion";
 import FAQ from "@/components/contact/FAQ";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/lib/supabaseClient";
+import { ADMIN_EMAIL, isAdminEmail } from "@/lib/adminConfig";
 import { Instagram, MessageCircle, Music2, Phone, Send, Twitter } from "lucide-react";
 
 const defaultSettings = { location: "Addis Ababa, Ethiopia", mapQuery: "Addis Ababa, Ethiopia", myLocation: "https://maps.app.goo.gl/zAfbZ3vp7xGEfKnP8?g_st=atm", phone: "+251 93 429 0520", whatsapp: "https://wa.me/251934290520", instagram: "https://instagram.com", telegram: "https://t.me/MTdesignerandmodel", tiktok: "https://tiktok.com", twitter: "https://twitter.com" };
@@ -46,8 +47,8 @@ export default function Contact() {
     event.preventDefault();
     setChecking(true);
     setError("");
-    const { data, error: authError } = await supabase.auth.signInWithPassword({ email: "englishpractice265@gmail.com", password });
-    if (authError || data.user?.email?.toLowerCase() !== "englishpractice265@gmail.com") setError("Invalid admin password.");
+    const { data, error: authError } = await supabase.auth.signInWithPassword({ email: ADMIN_EMAIL, password });
+    if (authError || !isAdminEmail(data.user?.email)) setError("Invalid admin password.");
     else navigate("/update-contact");
     setPassword("");
     setChecking(false);

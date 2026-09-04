@@ -4,6 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/components/ui/use-toast";
+import { supabase } from "@/lib/supabaseClient";
 
 export default function InquiryForm() {
   const { toast } = useToast();
@@ -22,10 +23,31 @@ export default function InquiryForm() {
     setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
-  const handleSubmit = (e) => {
+  const [submitting, setSubmitting] = useState(false);
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!formData.name || !formData.email || !formData.message) {
       toast({ title: "Please fill in all required fields.", variant: "destructive" });
+      return;
+    }
+    if (!supabase) {
+      toast({ title: "The inquiry service is not configured.", variant: "destructive" });
+      return;
+    }
+    setSubmitting(true);
+    const { error } = await supabase.from("contact_inquiries").insert({
+      name: formData.name,
+      email: formData.email,
+      occasion: formData.occasion || null,
+      project_type: formData.projectType || null,
+      budget: formData.budget || null,
+      timeline: formData.timeline || null,
+      message: formData.message,
+    });
+    setSubmitting(false);
+    if (error) {
+      toast({ title: "Unable to send your inquiry.", description: error.message, variant: "destructive" });
       return;
     }
     setSubmitted(true);
@@ -152,9 +174,10 @@ export default function InquiryForm() {
 
       <button
         type="submit"
+        disabled={submitting}
         className="inline-flex items-center justify-center px-10 py-4 bg-charcoal text-gallery font-mono text-xs tracking-widest uppercase hover:bg-cobalt transition-colors duration-300 focus:outline-none focus:ring-2 focus:ring-cobalt focus:ring-offset-4"
       >
-        Send Commission
+        {submitting ? "Sending..." : "Send Commission"}
       </button>
     </form>
   );

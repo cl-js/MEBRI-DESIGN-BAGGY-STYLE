@@ -34,7 +34,7 @@ export default function Admin() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
-  const [uploadingImages, setUploadingImages] = useState(false);
+  const [galleryUrl, setGalleryUrl] = useState("");
 
   function isAuthorized(nextSession) {
     return isAdminEmail(nextSession?.user?.email);
@@ -150,6 +150,7 @@ export default function Admin() {
   function startEdit(row = null) {
     setEditing(row?.id || "new");
     setForm(row ? { ...emptyProject, ...row.data } : { ...emptyProject });
+    setGalleryUrl("");
     setStatus("");
   }
 
@@ -157,60 +158,21 @@ export default function Admin() {
     setForm((current) => ({ ...current, [field]: value }));
   }
 
-  async function uploadImage(file) {
-    if (!file.type.startsWith("image/")) throw new Error("Choose an image file.");
-    if (file.size > 15 * 1024 * 1024) throw new Error("Images must be smaller than 15 MB.");
-
-    const body = new FormData();
-    body.append("file", file, file.name);
-    const response = await fetch("/api/r2-upload-url", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${session.access_token}` },
-      body,
-    });
-    const result = await response.json();
-    if (!response.ok) throw new Error(result.error || "Could not prepare the image upload.");
-    return result.publicUrl;
-  }
-
-  async function uploadSingleImage(field, event) {
-    const file = event.target.files?.[0];
-    event.target.value = "";
-    if (!file) return;
-    setUploadingImages(true);
-    setStatus(`Uploading ${file.name}...`);
-    try {
-      const url = await uploadImage(file);
-      updateField(field, url);
-      setStatus("Image uploaded. Save the project to store its URL in Supabase.");
-    } catch (error) {
-      setStatus(error.message);
-    } finally {
-      setUploadingImages(false);
-    }
-  }
-
-  async function uploadGalleryImages(event) {
-    const availableSlots = 3 - (form.images || []).length;
-    const files = Array.from(event.target.files || []).slice(0, availableSlots);
-    event.target.value = "";
-    if (!files.length) {
-      if (availableSlots <= 0) setStatus("You can add a maximum of 3 gallery images.");
+  function addGalleryImage(event) {
+    event.preventDefault();
+    const url = galleryUrl.trim();
+    if (!url) return;
+    if ((form.images || []).length >= 3) {
+      setStatus("You can add a maximum of 3 gallery images.");
       return;
     }
-    setUploadingImages(true);
-    try {
-      for (const file of files) {
-        setStatus(`Uploading ${file.name}...`);
-        const url = await uploadImage(file);
-        setForm((current) => ({ ...current, images: [...(current.images || []), url].slice(0, 3) }));
-      }
-      setStatus("Gallery images uploaded. Save the project to store their URLs in Supabase.");
-    } catch (error) {
-      setStatus(error.message);
-    } finally {
-      setUploadingImages(false);
+    if ((form.images || []).includes(url)) {
+      setStatus("That gallery image URL is already added.");
+      return;
     }
+    updateField("images", [...(form.images || []), url]);
+    setGalleryUrl("");
+    setStatus("Gallery image added. Save the project to store its URL in Supabase.");
   }
 
   function removeGalleryImage(url) {
@@ -336,10 +298,10 @@ export default function Admin() {
       {status && <p className="mb-6 text-sm text-muted-foreground">{status}</p>}
       {editing && <form onSubmit={saveProject} className="mb-10 grid min-w-0 grid-cols-1 gap-5 border-y border-border px-0 py-6 sm:p-6 md:grid-cols-2">
         {[['title','Title'],['subtitle','Subtitle'],['slug','Slug'],['category','Category'],['year','Year'],['role','Role'],['tagline','Tagline'],['objective','Objective'],['description','Description']].map(([field, label]) => <label key={field} className={`min-w-0 ${field === 'description' || field === 'objective' ? 'md:col-span-2' : ''}`}><span className="mb-2 block text-xs uppercase tracking-widest text-muted-foreground">{label}</span>{['description', 'objective'].includes(field) ? <textarea className="min-h-24 w-full min-w-0 border border-border bg-transparent p-3 break-words" value={form[field] || ''} onChange={(e) => updateField(field, e.target.value)} /> : <input className="w-full min-w-0 border-b border-border bg-transparent py-2" value={form[field] || ''} onChange={(e) => updateField(field, e.target.value)} required={field === 'title'} />}</label>)}
-        <div className="grid min-w-0 gap-5 md:col-span-2 md:grid-cols-3">{[['image','Cover image'],['heroImage','Hero image'],['processImage','Process image']].map(([field, label]) => <label key={field} className="min-w-0"><span className="mb-2 block text-xs uppercase tracking-widest text-muted-foreground">{label}</span><input className="w-full min-w-0 border border-border bg-transparent p-3 text-sm" type="file" accept="image/*" onChange={(event) => uploadSingleImage(field, event)} disabled={uploadingImages} />{form[field] && <span className="mt-2 block truncate text-xs text-muted-foreground">Uploaded</span>}</label>)}</div>
-        <div className="min-w-0 md:col-span-2"><div className="mb-2 flex items-center justify-between gap-3"><span className="block text-xs uppercase tracking-widest text-muted-foreground">Gallery images</span><span className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">{(form.images || []).length}/3 images</span></div><input className="w-full min-w-0 border border-border bg-transparent p-3 text-sm disabled:cursor-not-allowed disabled:opacity-50" type="file" accept="image/*" multiple onChange={uploadGalleryImages} disabled={uploadingImages || (form.images || []).length >= 3} />{(form.images || []).length >= 3 && <p className="mt-2 text-xs text-muted-foreground">Maximum of 3 gallery images reached.</p>}{(form.images || []).length > 0 && <div className="mt-4 space-y-2">{form.images.map((imageUrl) => <div key={imageUrl} className="flex min-w-0 items-center justify-between gap-3 border-b border-border py-2"><span className="min-w-0 truncate text-sm text-muted-foreground">Uploaded image</span><button className="shrink-0 text-xs uppercase tracking-widest text-red-600 transition-colors hover:text-red-800" type="button" onClick={() => removeGalleryImage(imageUrl)} disabled={uploadingImages}>Remove</button></div>)}</div>}</div>
+        <div className="grid min-w-0 gap-5 md:col-span-2 md:grid-cols-3">{[['image','Cover image'],['heroImage','Hero image'],['processImage','Process image']].map(([field, label]) => <label key={field} className="min-w-0"><span className="mb-2 block text-xs uppercase tracking-widest text-muted-foreground">{label} URL</span><input className="w-full min-w-0 border border-border bg-transparent p-3 text-sm" type="url" placeholder="https://..." value={form[field] || ''} onChange={(e) => updateField(field, e.target.value)} /></label>)}</div>
+        <div className="min-w-0 md:col-span-2"><div className="mb-2 flex items-center justify-between gap-3"><span className="block text-xs uppercase tracking-widest text-muted-foreground">Gallery image URLs</span><span className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">{(form.images || []).length}/3 images</span></div><div className="flex min-w-0 flex-col gap-2 sm:flex-row"><input className="w-full min-w-0 border border-border bg-transparent p-3 text-sm" type="url" placeholder="https://..." value={galleryUrl} onChange={(e) => setGalleryUrl(e.target.value)} disabled={(form.images || []).length >= 3} /><button className="shrink-0 border border-border px-4 py-3 text-xs uppercase tracking-widest transition-colors hover:border-cobalt hover:text-cobalt disabled:cursor-not-allowed disabled:opacity-50" type="button" onClick={addGalleryImage} disabled={(form.images || []).length >= 3}>Add URL</button></div>{(form.images || []).length >= 3 && <p className="mt-2 text-xs text-muted-foreground">Maximum of 3 gallery images reached.</p>}{(form.images || []).length > 0 && <div className="mt-4 space-y-2">{form.images.map((imageUrl) => <div key={imageUrl} className="flex min-w-0 items-center justify-between gap-3 border-b border-border py-2"><span className="min-w-0 truncate text-sm text-muted-foreground">{imageUrl}</span><button className="shrink-0 text-xs uppercase tracking-widest text-red-600 transition-colors hover:text-red-800" type="button" onClick={() => removeGalleryImage(imageUrl)}>Remove</button></div>)}</div>}</div>
         {[['outcomes','Outcomes'],['deliverables','Deliverables']].map(([field,label]) => <label key={field} className="min-w-0"><span className="block text-xs uppercase tracking-widest text-muted-foreground mb-2">{label}</span><textarea className="min-h-24 w-full min-w-0 border border-border bg-transparent p-3 break-words" value={(form[field] || []).join("\n")} onChange={(e) => updateField(field, splitLines(e.target.value))} /></label>)}
-        <div className="flex flex-col gap-3 border-t border-border pt-5 sm:flex-row md:col-span-2"><button className="w-full bg-charcoal px-5 py-3 text-sm uppercase tracking-widest text-gallery transition-colors hover:bg-cobalt disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto" type="submit" disabled={saving || uploadingImages}>{saving ? "Saving..." : uploadingImages ? "Uploading..." : "Save project"}</button><button className="w-full border border-border px-5 py-3 text-sm uppercase tracking-widest transition-colors hover:border-cobalt hover:text-cobalt sm:w-auto" type="button" onClick={() => setEditing(null)} disabled={saving || uploadingImages}>Cancel</button></div>
+        <div className="flex flex-col gap-3 border-t border-border pt-5 sm:flex-row md:col-span-2"><button className="w-full bg-charcoal px-5 py-3 text-sm uppercase tracking-widest text-gallery transition-colors hover:bg-cobalt disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto" type="submit" disabled={saving}>{saving ? "Saving..." : "Save project"}</button><button className="w-full border border-border px-5 py-3 text-sm uppercase tracking-widest transition-colors hover:border-cobalt hover:text-cobalt sm:w-auto" type="button" onClick={() => setEditing(null)} disabled={saving}>Cancel</button></div>
       </form>}
       <div className="border-t border-border">{projects.map((row) => <div key={row.id} className="grid gap-5 border-b border-border py-6 md:grid-cols-[1fr_auto] md:items-center"><div className="min-w-0"><div className="flex flex-wrap items-baseline gap-x-4 gap-y-1"><span className="font-mono text-xs text-muted-foreground">{row.data.id}</span><strong className="font-body text-xl font-light tracking-tight">{row.data.title}</strong></div><span className="mt-2 block text-sm text-muted-foreground">{row.data.category}</span></div><div className="flex flex-wrap gap-2"><button className="border border-border px-3 py-2 text-xs uppercase tracking-widest transition-colors hover:border-cobalt hover:text-cobalt disabled:cursor-not-allowed disabled:opacity-50" onClick={() => startEdit(row)} disabled={deleting}>Edit</button><button className="border border-red-300 px-3 py-2 text-xs uppercase tracking-widest text-red-700 transition-colors hover:bg-red-600 hover:text-white disabled:cursor-not-allowed disabled:opacity-50" onClick={() => deleteProject(row)} disabled={deleting}>{deleting ? "Deleting..." : "Delete"}</button></div></div>)}</div>
       </div>

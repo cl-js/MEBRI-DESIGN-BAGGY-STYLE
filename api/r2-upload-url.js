@@ -13,11 +13,23 @@ async function readRequestBody(request) {
   const contentType = request.headers.get?.("content-type") || request.headers["content-type"] || "";
 
   if (contentType.includes("application/json")) {
-    try {
-      return await request.json();
-    } catch {
-      return {};
+    if (typeof request.json === "function") {
+      try {
+        return await request.json();
+      } catch {
+        // Fall through to Vercel's already-parsed request.body.
+      }
     }
+
+    if (typeof request.body === "string") {
+      try {
+        return JSON.parse(request.body);
+      } catch {
+        return {};
+      }
+    }
+
+    if (request.body && typeof request.body === "object") return request.body;
   }
 
   if (request.body && typeof request.body !== "string") {

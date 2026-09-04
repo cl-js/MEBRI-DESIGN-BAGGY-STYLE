@@ -161,20 +161,15 @@ export default function Admin() {
     if (!file.type.startsWith("image/")) throw new Error("Choose an image file.");
     if (file.size > 15 * 1024 * 1024) throw new Error("Images must be smaller than 15 MB.");
 
+    const body = new FormData();
+    body.append("file", file, file.name);
     const response = await fetch("/api/r2-upload-url", {
       method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
-      body: JSON.stringify({ filename: file.name, contentType: file.type, size: file.size }),
+      headers: { Authorization: `Bearer ${session.access_token}` },
+      body,
     });
     const result = await response.json();
     if (!response.ok) throw new Error(result.error || "Could not prepare the image upload.");
-
-    const uploadResponse = await fetch(result.uploadUrl, {
-      method: "PUT",
-      headers: { "Content-Type": file.type },
-      body: file,
-    });
-    if (!uploadResponse.ok) throw new Error("Cloudflare R2 rejected the image upload.");
     return result.publicUrl;
   }
 

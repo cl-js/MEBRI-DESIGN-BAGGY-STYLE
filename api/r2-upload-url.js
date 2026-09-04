@@ -1,56 +1,38 @@
+import Busboy from "@fastify/busboy";
 import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
-import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { createClient } from "@supabase/supabase-js";
 
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL?.trim().toLowerCase();
 const MAX_UPLOAD_BYTES = 15 * 1024 * 1024;
 
+export const config = {
+  api: { bodyParser: false, sizeLimit: "16mb" },
+};
+
 function json(response, status, body) {
   response.status(status).json(body);
 }
 
-async function readRequestBody(request) {
-  const contentType = request.headers.get?.("content-type") || request.headers["content-type"] || "";
+function readMultipartBody(request) {
+  return new Promise((resolve, reject) => {
+    const parser = Busboy({ headers: request.headers, limits: { fileSize: MAX_UPLOAD_BYTES } });
+    const fields = {};
+    let file;
+    let fileInfo;
+    let fileTooLarge = false;
 
-  if (contentType.includes("application/json")) {
-    if (typeof request.json === "function") {
-      try {
-        return await request.json();
-      } catch {
-        // Fall through to Vercel's already-parsed request.body.
-      }
-    }
-
-    if (typeof request.body === "string") {
-      try {
-        return JSON.parse(request.body);
-      } catch {
-        return {};
-      }
-    }
-
-    if (request.body && typeof request.body === "object") return request.body;
-  }
-
-  if (request.body && typeof request.body !== "string") {
-    try {
-      const raw = await new Response(request.body).text();
-      if (!raw) return {};
-      try {
-        return JSON.parse(raw);
-      } catch {
-        return { raw };
-      }
-    } catch {
-      return {};
-    }
-  }
-
-  if (request.body && typeof request.body === "object") {
-    return request.body;
-  }
-
-  return {};
+    parser.on("field", (name, value) => { fields[name] = value; });
+    parser.on("file", (name, stream, info) => {
+      fileInfo = info;
+      const chunks = [];
+      stream.on("limit", () => { fileTooLarge = true; });
+      stream.on("data", (chunk) => chunks.push(chunk));
+      stream.on("end", () => { file = Buffer.concat(chunks); });
+    });
+    parser.on("error", reject);
+    parser.on("finish", () => resolve({ fields, file, fileInfo, fileTooLarge }));
+    request.pipe(parser);
+  });
 }
 
 export default async function handler(request, response) {
@@ -76,11 +58,12 @@ export default async function handler(request, response) {
     return json(response, 403, { error: "You are not authorized to upload images." });
   }
 
-  const body = await readRequestBody(request);
-  const { filename, contentType, size } = body || {};
-  const uploadSize = Number(size);
+  const { fields, file, fileInfo, fileTooLarge } = await readMultipartBody(request);
+  const filename = fileInfo?.filename || fields.filename;
+  const contentType = fileInfo?.mimeType || fields.contentType;
+  const uploadSize = file?.length || 0;
 
-  if (!filename || !contentType?.startsWith("image/") || !Number.isFinite(uploadSize) || uploadSize <= 0 || uploadSize > MAX_UPLOAD_BYTES) {
+  if (fileTooLarge || !filename || !contentType?.startsWith("image/") || uploadSize <= 0 || uploadSize > MAX_UPLOAD_BYTES) {
     return json(response, 400, { error: "Upload an image smaller than 15 MB." });
   }
 
@@ -101,8 +84,14 @@ export default async function handler(request, response) {
     endpoint: `https://${accountId}.r2.cloudflarestorage.com`,
     credentials: { accessKeyId, secretAccessKey },
   });
-  const command = new PutObjectCommand({ Bucket: bucketName, Key: objectKey, ContentType: contentType });
-  const uploadUrl = await getSignedUrl(client, command, { expiresIn: 300 });
+  const command = new PutObjectCommand({
+    Bucket: bucketName,
+    Key: objectKey,
+    Body: file,
+    ContentLength: uploadSize,
+    ContentType: contentType,
+  });
+  await client.send(command);
 
-  return json(response, 200, { uploadUrl, publicUrl: `${publicUrl}/${objectKey}` });
+  return json(response, 200, { publicUrl: `${publicUrl}/${objectKey}` });
 }

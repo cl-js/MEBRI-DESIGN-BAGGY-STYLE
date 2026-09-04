@@ -15,6 +15,11 @@ function json(response, status, body) {
 
 function readMultipartBody(request) {
   return new Promise((resolve, reject) => {
+    if (typeof request.pipe !== "function") {
+      reject(new Error("The upload request stream is unavailable."));
+      return;
+    }
+
     const parser = Busboy({ headers: request.headers, limits: { fileSize: MAX_UPLOAD_BYTES } });
     const fields = {};
     let file;
@@ -58,7 +63,15 @@ export default async function handler(request, response) {
     return json(response, 403, { error: "You are not authorized to upload images." });
   }
 
-  const { fields, file, fileInfo, fileTooLarge } = await readMultipartBody(request);
+  let multipart;
+  try {
+    multipart = await readMultipartBody(request);
+  } catch (error) {
+    console.error("Failed to parse image upload:", error);
+    return json(response, 400, { error: "The image upload could not be read. Please try again." });
+  }
+
+  const { fields, file, fileInfo, fileTooLarge } = multipart;
   const filename = fileInfo?.filename || fields.filename;
   const contentType = fileInfo?.mimeType || fields.contentType;
   const uploadSize = file?.length || 0;
@@ -91,7 +104,12 @@ export default async function handler(request, response) {
     ContentLength: uploadSize,
     ContentType: contentType,
   });
-  await client.send(command);
+  try {
+    await client.send(command);
+  } catch (error) {
+    console.error("Failed to upload image to R2:", error);
+    return json(response, 502, { error: "Cloudflare R2 could not store the image. Please try again." });
+  }
 
   return json(response, 200, { publicUrl: `${publicUrl}/${objectKey}` });
 }
